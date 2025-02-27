@@ -7,8 +7,6 @@ public class CarController : MonoBehaviour
     public static float ACCELERATION = 6f;
     public static float DECELERATION = 3f;
     public static float MAX_ROTATION_SPEED = 100f;
-    public static float SPEED_TO_TURN_RATIO = 0.4f;
-    public static float BASE_TURN_SPEED = 0.1f;
 
     private float speed = 0f;
     private float rotationSpeed = 0f;
@@ -31,6 +29,32 @@ public class CarController : MonoBehaviour
         ApplyMovement();
     }
 
+    private float TurnInputForSpeed(float speed)
+    {
+        float turn_ratio = 0.8f;
+        if (speed == 0)
+        {
+            return 0f;
+        }
+        else if (speed < 0)
+        {
+            return TurnInputForSpeed(-speed);
+        }
+        // Piecewise func for turning speed to act more like real turning
+        else if (speed > 0 && speed <= (MAX_SPEED / 2))
+        {
+            return speed * turn_ratio;
+        }
+        else
+        {
+            float neg_turn_ratio = 0.2f;
+            float yIntercept = (MAX_SPEED / 2f)*(turn_ratio + neg_turn_ratio);
+            
+            return -(neg_turn_ratio * speed) + yIntercept;
+        }
+        
+    }
+
     private void HandleInput()
     {
         float moveInput = 0f;
@@ -49,11 +73,11 @@ public class CarController : MonoBehaviour
         // Left and right turning
         if (Input.GetKey(KeyCode.LeftArrow))
         {
-            turnInput = speed * SPEED_TO_TURN_RATIO + BASE_TURN_SPEED;
+            turnInput = TurnInputForSpeed(speed);
         }
         else if (Input.GetKey(KeyCode.RightArrow))
         {
-            turnInput = -(speed * SPEED_TO_TURN_RATIO + BASE_TURN_SPEED);
+            turnInput = -TurnInputForSpeed(speed);
         }
 
         // Apply acceleration or deceleration
