@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public class CarController : MonoBehaviour
 {
@@ -108,6 +109,11 @@ public class CarController : MonoBehaviour
 
     private void ApplyMovement()
     {
+        if (Math.Abs(Vector2.Dot(rb.linearVelocity, transform.up) - speed) > 0.5f)
+        {
+            speed = Vector2.Dot(rb.linearVelocity, transform.up); 
+        }
+
         // Move the car in its current forward direction
         rb.linearVelocity = transform.up * speed;
 
