@@ -64,11 +64,11 @@ public class CarController : MonoBehaviour
         // Forward and backward movement
         if (Input.GetKey(KeyCode.UpArrow))
         {
-            moveInput = ACCELERATION;
+            moveInput += ACCELERATION;
         }
-        else if (Input.GetKey(KeyCode.DownArrow))
+        if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.Space))
         {
-            moveInput = -ACCELERATION;
+            moveInput -= ACCELERATION;
         }
 
         // Left and right turning
