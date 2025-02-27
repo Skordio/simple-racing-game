@@ -631,7 +631,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -655,8 +655,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71b5dcf8f45f93d4d9ce320cbf69ce49, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 0
-  rotationSpeed: 0
 --- !u!61 &958412186
 BoxCollider2D:
   m_ObjectHideFlags: 0

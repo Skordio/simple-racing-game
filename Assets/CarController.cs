@@ -2,21 +2,25 @@ using UnityEngine;
 
 public class CarController : MonoBehaviour
 {
-    public static float MAX_SPEED = 10f;
-    public static float MAX_BACKWARD_SPEED = 5f;
-    public static float ACCELERATION = 5f;
+    public static float MAX_SPEED = 7f;
+    public static float MAX_BACKWARD_SPEED = MAX_SPEED/2;
+    public static float ACCELERATION = 6f;
     public static float DECELERATION = 3f;
     public static float MAX_ROTATION_SPEED = 100f;
+    public static float SPEED_TO_TURN_RATIO = 0.4f;
+    public static float BASE_TURN_SPEED = 0.1f;
 
     private float speed = 0f;
     private float rotationSpeed = 0f;
     private Rigidbody2D rb;
 
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
     }
 
+    // Update is called once per frame
     void Update()
     {
         HandleInput();
@@ -45,11 +49,11 @@ public class CarController : MonoBehaviour
         // Left and right turning
         if (Input.GetKey(KeyCode.LeftArrow))
         {
-            turnInput = 1f;
+            turnInput = speed * SPEED_TO_TURN_RATIO + BASE_TURN_SPEED;
         }
         else if (Input.GetKey(KeyCode.RightArrow))
         {
-            turnInput = -1f;
+            turnInput = -(speed * SPEED_TO_TURN_RATIO + BASE_TURN_SPEED);
         }
 
         // Apply acceleration or deceleration
@@ -81,7 +85,7 @@ public class CarController : MonoBehaviour
     private void ApplyMovement()
     {
         // Move the car in its current forward direction
-        rb.velocity = transform.up * speed;
+        rb.linearVelocity = transform.up * speed;
 
         // Rotate the car
         if (speed != 0) // Only turn when moving
