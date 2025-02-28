@@ -23,36 +23,32 @@ public class CarController : MonoBehaviour
             float moveInput = 0f;
             float turnInput = 0f;
 
-            // Forward and backward movement
+            // Input handling
             if (Input.GetKey(KeyCode.UpArrow))
-            {
                 moveInput += ACCELERATION;
-            }
-            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.Space))
-            {
-                moveInput -= ACCELERATION;
-            }
 
-            // Left and right turning
+            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.Space))
+                moveInput -= ACCELERATION;
+                
+                
             if (Input.GetKey(KeyCode.LeftArrow))
-            {
-                turnInput = Car.TurnInputForSpeed();
-            }
-            else if (Input.GetKey(KeyCode.RightArrow))
-            {
-                turnInput = -Car.TurnInputForSpeed();
-            }
+                turnInput += Car.TurnInputForSpeed(Car.speed);
+            
+            if (Input.GetKey(KeyCode.RightArrow))
+                turnInput -= Car.TurnInputForSpeed(Car.speed);
+                
 
             // Apply acceleration or deceleration
             if (moveInput != 0)
             {
                 Car.speed += moveInput * Time.deltaTime;
+                
                 if (Car.speed > MAX_SPEED) Car.speed = MAX_SPEED;
+
                 if (Car.speed < -MAX_BACKWARD_SPEED) Car.speed = -MAX_BACKWARD_SPEED;
             }
             else
             {
-                // Deceleration when no input is given
                 if (Car.speed > 0)
                 {
                     Car.speed -= DECELERATION * Time.deltaTime;
@@ -82,6 +78,45 @@ public class CarController : MonoBehaviour
     private InputHandler ih;
     private Rigidbody2D rb;
 
+
+    private float TurnInputForSpeed(float forSpeed)
+    {
+        forSpeed = Math.Abs(forSpeed);
+
+        // Ratio between forward speed and rotation speed for 0 < speed < MAX_SPEED/2
+        float turn_ratio = 0.8f;
+
+        if (forSpeed >= 0 && forSpeed <= (MAX_SPEED / 2))
+        {
+            return forSpeed * turn_ratio;
+        }
+        else
+        {
+            // Ratio between forward speed and rotation speed for MAX_SPEED/2 < speed < MAX_SPEED 
+            float neg_turn_ratio = 0.2f;
+
+            float yIntercept = MAX_SPEED / 2f * (turn_ratio + neg_turn_ratio);
+
+            return -(neg_turn_ratio * forSpeed) + yIntercept;
+        }
+
+    }
+
+    private void ApplyMovement()
+    {
+        // Check if car has stopped moving and adjust speed variable appropriately
+        if (Math.Abs(Vector2.Dot(rb.linearVelocity, transform.up) - speed) > 0.5f)
+            speed = Vector2.Dot(rb.linearVelocity, transform.up);
+
+        rb.linearVelocity = transform.up * speed;
+
+        if (speed != 0)
+            rb.angularVelocity = rotationSpeed;
+        else
+            rb.angularVelocity = 0;
+ 
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -98,46 +133,5 @@ public class CarController : MonoBehaviour
     void FixedUpdate()
     {
         ApplyMovement();
-    }
-
-    private float TurnInputForSpeed()
-    {
-        float forSpeed = Math.Abs(speed);
-        float turn_ratio = 0.8f;
-        // Piecewise func for turning speed to act more like real turning
-        if (forSpeed >= 0 && forSpeed <= (MAX_SPEED / 2))
-        {
-            return forSpeed * turn_ratio;
-        }
-        else
-        {
-            float neg_turn_ratio = 0.2f;
-            float yIntercept = MAX_SPEED / 2f * (turn_ratio + neg_turn_ratio);
-
-            return -(neg_turn_ratio * forSpeed) + yIntercept;
-        }
-
-    }
-
-    private void ApplyMovement()
-    {
-        // Check if car has stopped moving and adjust speed variable appropriately
-        if (Math.Abs(Vector2.Dot(rb.linearVelocity, transform.up) - speed) > 0.5f)
-        {
-            speed = Vector2.Dot(rb.linearVelocity, transform.up);
-        }
-
-        // Move the car in its current forward direction
-        rb.linearVelocity = transform.up * speed;
-
-        // Rotate the car
-        if (speed != 0) // Only turn when moving
-        {
-            rb.angularVelocity = rotationSpeed;
-        }
-        else
-        {
-            rb.angularVelocity = 0;
-        }
     }
 }
