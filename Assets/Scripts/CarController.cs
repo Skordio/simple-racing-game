@@ -32,10 +32,10 @@ public class CarController : MonoBehaviour
                 
                 
             if (Input.GetKey(KeyCode.LeftArrow))
-                turnInput += Car.TurnInputForSpeed(Car.speed);
+                turnInput += 1f * Car.turnRatioForSpeed(Car.speed);
             
             if (Input.GetKey(KeyCode.RightArrow))
-                turnInput -= Car.TurnInputForSpeed(Car.speed);
+                turnInput -= 1f * Car.turnRatioForSpeed(Car.speed);
                 
 
             // Apply acceleration or deceleration
@@ -79,7 +79,8 @@ public class CarController : MonoBehaviour
     private Rigidbody2D rb;
 
 
-    private float TurnInputForSpeed(float forSpeed)
+    // This function returns the ratio of turn strength based on the speed of the car
+    private float turnRatioForSpeed(float forSpeed)
     {
         forSpeed = Math.Abs(forSpeed);
 
