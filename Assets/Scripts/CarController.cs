@@ -1,9 +1,14 @@
 using UnityEngine;
 using System;
+using TMPro;
 
 public interface InputHandler {
     // Adjusts the velocity and rotationSpeed variables in the carController class based on input
     (float moveInput, float turnInput, bool driftInput) HandleInput();
+}
+
+public enum InputMode {
+    KEYBOARD, MOUSE
 }
 
 public class CarController : MonoBehaviour
@@ -12,7 +17,7 @@ public class CarController : MonoBehaviour
     public static float ACCELERATION = 6f;
     public static float DECELERATION = 3f;
     public static float ROTATION_SPEED = 100f;
-    
+
     private static int MAX_RESIDUAL_DRIFT_FRAMES = 40;
 
     private class ArrowKeyMovementHandler : InputHandler
@@ -35,9 +40,9 @@ public class CarController : MonoBehaviour
                 moveInput -= 0.8f;
 
             if (Input.GetKey(KeyCode.LeftArrow))
-                turnInput += 1f * Car.turnRatioForSpeed(Car.velocity.magnitude);
+                turnInput += 1f;
             if (Input.GetKey(KeyCode.RightArrow))
-                turnInput -= 1f * Car.turnRatioForSpeed(Car.velocity.magnitude);
+                turnInput -= 1f;
 
             return (moveInput, turnInput, Input.GetKey(KeyCode.Space));
         }
@@ -65,11 +70,11 @@ public class CarController : MonoBehaviour
             float turnInput;
             if ((angleToMouse > -15 && angleToMouse < 15) || angleToMouse > 115 || angleToMouse < -115)
             {
-                turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f) * Car.turnRatioForSpeed(Car.velocity.magnitude);
+                turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f);
             }
             else
             {
-                turnInput = angleToMouse / Math.Abs(angleToMouse) * Car.turnRatioForSpeed(Car.velocity.magnitude);
+                turnInput = angleToMouse / Math.Abs(angleToMouse);
             }
 
             float moveInput = 0f;
@@ -91,10 +96,11 @@ public class CarController : MonoBehaviour
     }
 
     public Vector2 velocity = Vector2.zero;
+    public InputMode inputMode;
     private float rotationSpeed = 0f;
     private int residualDriftFrames = 0;
 
-    private float nextDebugLogTime = 0f;
+    private TextMeshPro inputLabel;
 
     private InputHandler ih;
     private Rigidbody2D rb;
@@ -166,25 +172,52 @@ public class CarController : MonoBehaviour
         }
     }
 
+    void switchInputMode()
+    {
+        switch (inputMode)
+        {
+            case InputMode.KEYBOARD:
+                ih = new MouseMovementHandler(this);
+                inputMode = InputMode.MOUSE;
+                inputLabel.text = "Mouse";
+                break;
+            case InputMode.MOUSE:
+                ih = new ArrowKeyMovementHandler(this);
+                inputMode = InputMode.KEYBOARD;
+                inputLabel.text = "Keyboard";
+                break;
+            default:
+                break;
+        }
+    }
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         ih = new MouseMovementHandler(this);
+        inputMode = InputMode.MOUSE;
+        inputLabel = GameObject.Find("InputLabel").GetComponent<TextMeshPro>();
+        // inputLabel.text = "Mouse";
     }
 
     void Update()
     {
+        // if (Input.GetKey(KeyCode.Return))
+        // {
+        //     switchInputMode();
+        // }
+
         var (moveInput, turnInput, driftInput) = ih.HandleInput();
 
         float extraAccelerationFromDrifting = driftInput ? 0 : residualDriftFrames / 10;
         Vector2 accelerationVector = transform.up * moveInput * (ACCELERATION + extraAccelerationFromDrifting);
         velocity += accelerationVector * Time.deltaTime;
 
-        rotationSpeed = turnInput * ROTATION_SPEED;
+        rotationSpeed = turnInput * turnRatioForSpeed(velocity.magnitude) * ROTATION_SPEED;
 
         if (velocity.magnitude > MAX_SPEED)
             velocity = velocity.normalized * MAX_SPEED;
-            
+
         if (Mathf.Approximately(moveInput, 0f))
             decelerate();
     }
