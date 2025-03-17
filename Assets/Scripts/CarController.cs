@@ -1,21 +1,24 @@
 using UnityEngine;
 using System;
-using System.Runtime.CompilerServices;
 
 public interface InputHandler {
-    public abstract void HandleInput();
+    void HandleInput();
 }
 
 public class CarController : MonoBehaviour
 {
+    public static float MAX_SPEED = 6.5f;
+    public static float ACCELERATION = 6f;
+    public static float DECELERATION = 3f;
+    public static float MAX_ROTATION_SPEED = 100f;
 
     private class ArrowKeyMovementHandler : InputHandler
     {
         private CarController Car;
 
-        public ArrowKeyMovementHandler(CarController CarController)
+        public ArrowKeyMovementHandler(CarController carController)
         {
-            Car = CarController;
+            Car = carController;
         }
 
         public void HandleInput()
@@ -23,109 +26,113 @@ public class CarController : MonoBehaviour
             float moveInput = 0f;
             float turnInput = 0f;
 
-            // Input handling
             if (Input.GetKey(KeyCode.UpArrow))
-                moveInput += ACCELERATION;
+                moveInput += 1f;
+            if (Input.GetKey(KeyCode.DownArrow))
+                moveInput -= 0.8f;
 
-            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.Space))
-                moveInput -= ACCELERATION;
-                
-                
             if (Input.GetKey(KeyCode.LeftArrow))
-                turnInput += 1f * Car.turnRatioForSpeed(Car.speed);
-            
+                turnInput += 1f * Car.turnRatioForSpeed(Car.velocity.magnitude);
             if (Input.GetKey(KeyCode.RightArrow))
-                turnInput -= 1f * Car.turnRatioForSpeed(Car.speed);
-                
+                turnInput -= 1f * Car.turnRatioForSpeed(Car.velocity.magnitude);
 
-            // Apply acceleration or deceleration
-            if (moveInput != 0)
-            {
-                Car.speed += moveInput * Time.deltaTime;
-                
-                if (Car.speed > MAX_SPEED) Car.speed = MAX_SPEED;
+            // Apply acceleration
+            float extraAccelerationFromDrifting = Input.GetKey(KeyCode.Space) ? 0 : Car.residualDriftFrames / 10;
+            Vector2 accelerationVector = Car.transform.up * moveInput * (ACCELERATION + extraAccelerationFromDrifting);
+            Car.velocity += accelerationVector * Time.deltaTime;
 
-                if (Car.speed < -MAX_BACKWARD_SPEED) Car.speed = -MAX_BACKWARD_SPEED;
-            }
-            else
+            // Deceleration
+            if (Mathf.Approximately(moveInput, 0f))
             {
-                if (Car.speed > 0)
-                {
-                    Car.speed -= DECELERATION * Time.deltaTime;
-                    if (Car.speed < 0) Car.speed = 0;
-                }
-                else if (Car.speed < 0)
-                {
-                    Car.speed += DECELERATION * Time.deltaTime;
-                    if (Car.speed > 0) Car.speed = 0;
-                }
+                Car.velocity = Vector2.MoveTowards(Car.velocity, Vector2.zero, DECELERATION * Time.deltaTime);
             }
 
-            // Apply rotation
+            // Clamp the overall velocity to a maximum speed
+            if (Car.velocity.magnitude > MAX_SPEED)
+            {
+                Car.velocity = Car.velocity.normalized * MAX_SPEED;
+            }
+
+            // Apply rotation input
             Car.rotationSpeed = turnInput * MAX_ROTATION_SPEED;
         }
     }
 
-    public static float MAX_SPEED = 7f;
-    public static float MAX_BACKWARD_SPEED = MAX_SPEED / 2;
-    public static float ACCELERATION = 6f;
-    public static float DECELERATION = 3f;
-    public static float MAX_ROTATION_SPEED = 100f;
-
-    private float speed = 0f;
+    public Vector2 velocity = Vector2.zero;
     private float rotationSpeed = 0f;
+    private int residualDriftFrames = 0;
+    private static int maxResidualDriftFrames = 40;
 
     private InputHandler ih;
     private Rigidbody2D rb;
 
-
-    // This function returns the ratio of turn strength based on the speed of the car
-    private float turnRatioForSpeed(float forSpeed)
+    // Returns a turning ratio based on the car’s speed.
+    private float turnRatioForSpeed(float currentSpeed)
     {
-        forSpeed = Math.Abs(forSpeed);
-
-        // Ratio between forward speed and rotation speed for 0 < speed < MAX_SPEED/2
+        currentSpeed = Mathf.Abs(currentSpeed);
         float turn_ratio = 0.8f;
 
-        if (forSpeed >= 0 && forSpeed <= (MAX_SPEED / 2))
+        if (currentSpeed <= (MAX_SPEED / 2))
         {
-            return forSpeed * turn_ratio;
+            return currentSpeed * turn_ratio;
         }
         else
         {
-            // Ratio between forward speed and rotation speed for MAX_SPEED/2 < speed < MAX_SPEED 
-            float neg_turn_ratio = 0.2f;
-
-            float yIntercept = MAX_SPEED / 2f * (turn_ratio + neg_turn_ratio);
-
-            return -(neg_turn_ratio * forSpeed) + yIntercept;
+            if (Input.GetKey(KeyCode.Space))
+            {
+                return currentSpeed * 0.5f;
+            }
+            else
+            {
+                float neg_turn_ratio = 0.2f;
+                float yIntercept = (MAX_SPEED / 2f) * (turn_ratio + neg_turn_ratio);
+                return -(neg_turn_ratio * currentSpeed) + yIntercept;
+            }
         }
-
     }
 
+    // Apply movement to the Rigidbody2D.
     private void ApplyMovement()
     {
         // Check if car has stopped moving and adjust speed variable appropriately
-        if (Math.Abs(Vector2.Dot(rb.linearVelocity, transform.up) - speed) > 0.5f)
-            speed = Vector2.Dot(rb.linearVelocity, transform.up);
+        if (Math.Abs((rb.linearVelocity - velocity).magnitude) > 1f)
+            velocity = Vector2.zero;
 
-        rb.linearVelocity = transform.up * speed;
+        if (residualDriftFrames > 0)
+            residualDriftFrames--;
 
-        if (speed != 0)
-            rb.angularVelocity = rotationSpeed;
-        else
-            rb.angularVelocity = 0;
- 
+        // Decompose the current velocity into forward and right components.
+        Vector2 forward = transform.up;
+        Vector2 right = transform.right;
+        float forwardComponent = Vector2.Dot(velocity, forward);
+        float lateralComponent = Vector2.Dot(velocity, right);
+
+        
+        float driftLateralDamping = 5f;
+        float noDriftLateralDamping = 5f + ((maxResidualDriftFrames - residualDriftFrames) * 3);
+
+        // Apply lateral dampening
+        float lateralDamping = Input.GetKey(KeyCode.Space) ? driftLateralDamping : noDriftLateralDamping;
+        lateralComponent = Mathf.Lerp(lateralComponent, 0f, lateralDamping * Time.deltaTime);
+
+        if (lateralComponent > 0.2f)
+        {
+            residualDriftFrames = maxResidualDriftFrames;
+        }
+
+        // Reconstruct the velocity vector from its forward and lateral parts.
+        velocity = (forward * forwardComponent) + (right * lateralComponent);
+
+        rb.linearVelocity = velocity;
+        rb.angularVelocity = rotationSpeed;
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         ih = new ArrowKeyMovementHandler(this);
     }
 
-    // Update is called once per frame
     void Update()
     {
         ih.HandleInput();
