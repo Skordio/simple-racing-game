@@ -3,7 +3,7 @@ using System;
 
 public interface InputHandler {
     // Adjusts the velocity and rotationSpeed variables in the carController class based on input
-    void HandleInput();
+    (float moveInput, float turnInput, bool driftInput) HandleInput();
 }
 
 public class CarController : MonoBehaviour
@@ -11,7 +11,7 @@ public class CarController : MonoBehaviour
     public static float MAX_SPEED = 6.5f;
     public static float ACCELERATION = 6f;
     public static float DECELERATION = 3f;
-    public static float MAX_ROTATION_SPEED = 100f;
+    public static float ROTATION_SPEED = 100f;
     
     private static int MAX_RESIDUAL_DRIFT_FRAMES = 40;
 
@@ -24,7 +24,7 @@ public class CarController : MonoBehaviour
             Car = carController;
         }
 
-        public void HandleInput()
+        public (float moveInput, float turnInput, bool driftInput) HandleInput()
         {
             float moveInput = 0f;
             float turnInput = 0f;
@@ -39,21 +39,7 @@ public class CarController : MonoBehaviour
             if (Input.GetKey(KeyCode.RightArrow))
                 turnInput -= 1f * Car.turnRatioForSpeed(Car.velocity.magnitude);
 
-            // Apply acceleration
-            float extraAccelerationFromDrifting = Input.GetKey(KeyCode.Space) ? 0 : Car.residualDriftFrames / 10;
-            Vector2 accelerationVector = Car.transform.up * moveInput * (ACCELERATION + extraAccelerationFromDrifting);
-            Car.velocity += accelerationVector * Time.deltaTime;
-
-            // Deceleration
-            if (Mathf.Approximately(moveInput, 0f))
-                Car.decelerate();
-
-            // Clamp the overall velocity to a maximum speed
-            if (Car.velocity.magnitude > MAX_SPEED)
-                Car.velocity = Car.velocity.normalized * MAX_SPEED;
-
-            // Apply rotation input
-            Car.rotationSpeed = turnInput * MAX_ROTATION_SPEED;
+            return (moveInput, turnInput, Input.GetKey(KeyCode.Space));
         }
     }
 
@@ -66,20 +52,41 @@ public class CarController : MonoBehaviour
             Car = carController;
         }
 
-        public void HandleInput()
+        public (float moveInput, float turnInput, bool driftInput) HandleInput()
         {
             Vector2 mousePosition = Input.mousePosition;
             Vector2 carPosition = Camera.main.WorldToScreenPoint(Car.transform.position);
 
-            // Create a ray going from the car to the mouse
+            Vector2 directionToMouse = (mousePosition - carPosition).normalized;
+            Vector2 carForward = Car.transform.up;
 
-            // Create a ray indicating the way the car is facing
+            float angleToMouse = Vector2.SignedAngle(carForward, directionToMouse);
 
-            // Find the angle between the two rays to determine which way the car should turn, and by how much
+            float turnInput;
+            if ((angleToMouse > -15 && angleToMouse < 15) || angleToMouse > 115 || angleToMouse < -115)
+            {
+                turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f) * Car.turnRatioForSpeed(Car.velocity.magnitude);
+            }
+            else
+            {
+                turnInput = angleToMouse / Math.Abs(angleToMouse) * Car.turnRatioForSpeed(Car.velocity.magnitude);
+            }
 
-            // Hold w to accelerate, s to accelerate backwards, shift to drive slower, and space for drifting
-            
+            float moveInput = 0f;
+            if (Input.GetMouseButton(0))
+            {
+                if (angleToMouse > 120 || angleToMouse < -120)
+                {
+                    turnInput = -turnInput;
+                    moveInput -= 0.8f;
+                }
+                else
+                {
+                    moveInput += 1f;
+                }
+            }
 
+            return (moveInput, turnInput, Input.GetKey(KeyCode.Space));
         }
     }
 
@@ -153,7 +160,10 @@ public class CarController : MonoBehaviour
         velocity = (forward * forwardComponent) + (right * lateralComponent);
 
         rb.linearVelocity = velocity;
-        rb.angularVelocity = rotationSpeed;
+        if (!Mathf.Approximately(velocity.magnitude, 0f))
+        {
+            rb.angularVelocity = rotationSpeed;
+        }
     }
 
     void Start()
@@ -164,7 +174,19 @@ public class CarController : MonoBehaviour
 
     void Update()
     {
-        ih.HandleInput();
+        var (moveInput, turnInput, driftInput) = ih.HandleInput();
+
+        float extraAccelerationFromDrifting = driftInput ? 0 : residualDriftFrames / 10;
+        Vector2 accelerationVector = transform.up * moveInput * (ACCELERATION + extraAccelerationFromDrifting);
+        velocity += accelerationVector * Time.deltaTime;
+
+        rotationSpeed = turnInput * ROTATION_SPEED;
+
+        if (velocity.magnitude > MAX_SPEED)
+            velocity = velocity.normalized * MAX_SPEED;
+            
+        if (Mathf.Approximately(moveInput, 0f))
+            decelerate();
     }
 
     void FixedUpdate()
