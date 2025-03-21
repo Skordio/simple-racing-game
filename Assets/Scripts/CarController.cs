@@ -100,8 +100,6 @@ public class CarController : MonoBehaviour
     private float rotationSpeed = 0f;
     private int residualDriftFrames = 0;
 
-    private TextMeshPro inputLabel;
-
     private InputHandler ih;
     private Rigidbody2D rb;
 
@@ -172,41 +170,14 @@ public class CarController : MonoBehaviour
         }
     }
 
-    void switchInputMode()
-    {
-        switch (inputMode)
-        {
-            case InputMode.KEYBOARD:
-                ih = new MouseMovementHandler(this);
-                inputMode = InputMode.MOUSE;
-                inputLabel.text = "Mouse";
-                break;
-            case InputMode.MOUSE:
-                ih = new ArrowKeyMovementHandler(this);
-                inputMode = InputMode.KEYBOARD;
-                inputLabel.text = "Keyboard";
-                break;
-            default:
-                break;
-        }
-    }
-
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         ih = new MouseMovementHandler(this);
-        inputMode = InputMode.MOUSE;
-        inputLabel = GameObject.Find("InputLabel").GetComponent<TextMeshPro>();
-        // inputLabel.text = "Mouse";
     }
 
     void Update()
     {
-        // if (Input.GetKey(KeyCode.Return))
-        // {
-        //     switchInputMode();
-        // }
-
         var (moveInput, turnInput, driftInput) = ih.HandleInput();
 
         float extraAccelerationFromDrifting = driftInput ? 0 : residualDriftFrames / 10;
