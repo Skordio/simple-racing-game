@@ -59,27 +59,30 @@ public class CarController : MonoBehaviour
 
         public (float moveInput, float turnInput, bool driftInput) HandleInput()
         {
-            Vector2 mousePosition = Input.mousePosition;
-            Vector2 carPosition = Camera.main.WorldToScreenPoint(Car.transform.position);
 
-            Vector2 directionToMouse = (mousePosition - carPosition).normalized;
-            Vector2 carForward = Car.transform.up;
-
-            float angleToMouse = Vector2.SignedAngle(carForward, directionToMouse);
-
-            float turnInput;
-            if ((angleToMouse > -15 && angleToMouse < 15) || angleToMouse > 115 || angleToMouse < -115)
-            {
-                turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f);
-            }
-            else
-            {
-                turnInput = angleToMouse / Math.Abs(angleToMouse);
-            }
-
+            float turnInput = 0f;
             float moveInput = 0f;
+            
             if (Input.GetMouseButton(0))
             {
+                // Turning logic
+                Vector2 mousePosition = Input.mousePosition;
+                Vector2 carPosition = Camera.main.WorldToScreenPoint(Car.transform.position);
+
+                Vector2 directionToMouse = (mousePosition - carPosition).normalized;
+                Vector2 carForward = Car.transform.up;
+
+                float angleToMouse = Vector2.SignedAngle(carForward, directionToMouse);
+                if ((angleToMouse > -15 && angleToMouse < 15) || angleToMouse > 115 || angleToMouse < -115)
+                {
+                    turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f);
+                }
+                else
+                {
+                    turnInput = angleToMouse / Math.Abs(angleToMouse);
+                }
+
+                // Forwards and Backwards acceleration
                 if (angleToMouse > 120 || angleToMouse < -120)
                 {
                     turnInput = -turnInput;
