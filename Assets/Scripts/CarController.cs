@@ -1,25 +1,18 @@
 using UnityEngine;
 using System;
-using TMPro;
+using System.Collections.Generic;
+using ControlType = SettingsMenuController.ControlType;
+using Unity.IO.LowLevel.Unsafe;
 
-public interface InputHandler {
+public interface InputHandler
+{
+    ControlType controlType { get; }
     // Adjusts the velocity and rotationSpeed variables in the carController class based on input
     (float moveInput, float turnInput, bool driftInput) HandleInput();
 }
 
-public enum InputMode {
-    KEYBOARD, MOUSE
-}
-
 public class CarController : MonoBehaviour
 {
-    public static float MAX_SPEED = 6.5f;
-    public static float ACCELERATION = 6f;
-    public static float DECELERATION = 3f;
-    public static float ROTATION_SPEED = 100f;
-
-    private static int MAX_RESIDUAL_DRIFT_FRAMES = 40;
-
     private class ArrowKeyMovementHandler : InputHandler
     {
         private CarController Car;
@@ -28,6 +21,8 @@ public class CarController : MonoBehaviour
         {
             Car = carController;
         }
+
+        public ControlType controlType => ControlType.Keyboard;
 
         public (float moveInput, float turnInput, bool driftInput) HandleInput()
         {
@@ -56,6 +51,8 @@ public class CarController : MonoBehaviour
         {
             Car = carController;
         }
+
+        public ControlType controlType => ControlType.Mouse;
 
         public (float moveInput, float turnInput, bool driftInput) HandleInput()
         {
@@ -98,13 +95,33 @@ public class CarController : MonoBehaviour
         }
     }
 
+    public GameObject settingsMenu;
+
+    public static float MAX_SPEED = 6.5f;
+    public static float ACCELERATION = 6f;
+    public static float DECELERATION = 3f;
+    public static float ROTATION_SPEED = 100f;
+    private static int MAX_RESIDUAL_DRIFT_FRAMES = 40;
+
+    private Rigidbody2D rb;
     public Vector2 velocity = Vector2.zero;
-    public InputMode inputMode;
     private float rotationSpeed = 0f;
     private int residualDriftFrames = 0;
 
+    private Dictionary<ControlType, InputHandler> inputHandlers = new Dictionary<ControlType, InputHandler>();
     private InputHandler ih;
-    private Rigidbody2D rb;
+
+    private void Awake()
+    {
+        inputHandlers[ControlType.Keyboard] = new ArrowKeyMovementHandler(this);
+        inputHandlers[ControlType.Mouse] = new MouseMovementHandler(this);
+    }
+
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        ih = new MouseMovementHandler(this);
+    }
 
     // Returns a turning ratio based on the car’s speed.
     private float turnRatioForSpeed(float currentSpeed)
@@ -173,14 +190,21 @@ public class CarController : MonoBehaviour
         }
     }
 
-    void Start()
-    {
-        rb = GetComponent<Rigidbody2D>();
-        ih = new MouseMovementHandler(this);
-    }
-
     void Update()
     {
+        if (SettingsMenuController.currentControlType != ih.controlType)
+            ih = inputHandlers[SettingsMenuController.currentControlType];
+
+        if (settingsMenu.activeSelf)
+        {
+            rb.simulated = false;
+            return;
+        }
+        else
+        {
+            rb.simulated = true;
+        }
+
         var (moveInput, turnInput, driftInput) = ih.HandleInput();
 
         float extraAccelerationFromDrifting = driftInput ? 0 : residualDriftFrames / 10;
@@ -198,6 +222,9 @@ public class CarController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (settingsMenu.activeSelf)
+            return;
+
         ApplyMovement();
     }
 }
