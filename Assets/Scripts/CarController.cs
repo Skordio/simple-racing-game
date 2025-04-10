@@ -56,40 +56,41 @@ public class CarController : MonoBehaviour
 
         public (float moveInput, float turnInput, bool driftInput) HandleInput()
         {
+            bool leftMouse = Input.GetMouseButton(0);
+            bool rightMouse = Input.GetMouseButton(1);
 
             float turnInput = 0f;
             float moveInput = 0f;
+
+            if (!(leftMouse || rightMouse))
+                return (moveInput, turnInput, Input.GetKey(KeyCode.Space)); 
             
-            if (Input.GetMouseButton(0))
+            // Turning logic
+            Vector2 mousePosition = Input.mousePosition;
+            Vector2 carPosition = Camera.main.WorldToScreenPoint(Car.transform.position);
+
+            Vector2 directionToMouse = (mousePosition - carPosition).normalized;
+            Vector2 carForward = Car.transform.up;
+
+            float angleToMouse = Vector2.SignedAngle(carForward, directionToMouse);
+            if ((angleToMouse > -15 && angleToMouse < 15) || angleToMouse > 115 || angleToMouse < -115)
             {
-                // Turning logic
-                Vector2 mousePosition = Input.mousePosition;
-                Vector2 carPosition = Camera.main.WorldToScreenPoint(Car.transform.position);
-
-                Vector2 directionToMouse = (mousePosition - carPosition).normalized;
-                Vector2 carForward = Car.transform.up;
-
-                float angleToMouse = Vector2.SignedAngle(carForward, directionToMouse);
-                if ((angleToMouse > -15 && angleToMouse < 15) || angleToMouse > 115 || angleToMouse < -115)
-                {
-                    turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f);
-                }
-                else
-                {
-                    turnInput = angleToMouse / Math.Abs(angleToMouse);
-                }
-
-                // Forwards and Backwards acceleration
-                if (angleToMouse > 120 || angleToMouse < -120)
-                {
-                    turnInput = -turnInput;
-                    moveInput -= 0.8f;
-                }
-                else
-                {
-                    moveInput += 1f;
-                }
+                turnInput = Mathf.Clamp(angleToMouse, -0.8f, 0.8f);
             }
+            else
+            {
+                turnInput = angleToMouse / Math.Abs(angleToMouse);
+            }
+
+            // Forwards and Backwards acceleration
+            if (leftMouse)
+                moveInput += 1f;
+
+            if (rightMouse)
+                moveInput -= 0.8f;
+
+            if (angleToMouse > 120 || angleToMouse < -120)
+                turnInput = -turnInput;
 
             return (moveInput, turnInput, Input.GetKey(KeyCode.Space));
         }
