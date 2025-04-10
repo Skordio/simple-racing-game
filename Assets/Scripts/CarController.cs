@@ -168,11 +168,8 @@ public class CarController : MonoBehaviour
         float forwardComponent = Vector2.Dot(velocity, forward);
         float lateralComponent = Vector2.Dot(velocity, right);
 
-        float driftLateralDamping = 5f;
-        float noDriftLateralDamping = 5f + ((MAX_RESIDUAL_DRIFT_FRAMES - residualDriftFrames) * 3);
-
         // Apply lateral dampening
-        float lateralDamping = Input.GetKey(KeyCode.Space) ? driftLateralDamping : noDriftLateralDamping;
+        float lateralDamping = 5f + (Input.GetKey(KeyCode.Space) ? 0 : ((MAX_RESIDUAL_DRIFT_FRAMES - residualDriftFrames) * 3));
         lateralComponent = Mathf.Lerp(lateralComponent, 0f, lateralDamping * Time.deltaTime);
 
         if (lateralComponent > 0.2f || lateralComponent < -0.2f)
