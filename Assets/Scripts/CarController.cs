@@ -175,7 +175,7 @@ public class CarController : MonoBehaviour
         float lateralDamping = Input.GetKey(KeyCode.Space) ? driftLateralDamping : noDriftLateralDamping;
         lateralComponent = Mathf.Lerp(lateralComponent, 0f, lateralDamping * Time.deltaTime);
 
-        if (lateralComponent > 0.2f)
+        if (lateralComponent > 0.2f || lateralComponent < -0.2f)
         {
             residualDriftFrames = MAX_RESIDUAL_DRIFT_FRAMES;
         }
