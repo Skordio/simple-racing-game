@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using ControlType = SettingsMenuController.ControlType;
 using Unity.IO.LowLevel.Unsafe;
+using System.Net.NetworkInformation;
 
 public interface InputHandler
 {
@@ -83,14 +84,20 @@ public class CarController : MonoBehaviour
             }
 
             // Forwards and Backwards acceleration
-            if (leftMouse)
-                moveInput += 1f;
-
-            if (rightMouse)
-                moveInput -= 0.8f;
 
             if (angleToMouse > 120 || angleToMouse < -120)
+            {
                 turnInput = -turnInput;
+                moveInput -= 0.8f;
+            }
+            else
+            {
+                if (leftMouse)
+                    moveInput += 1f;
+
+                if (rightMouse)
+                    moveInput -= 0.8f;
+            }
 
             return (moveInput, turnInput, Input.GetKey(KeyCode.Space));
         }
@@ -98,11 +105,12 @@ public class CarController : MonoBehaviour
 
     public GameObject settingsMenu;
 
-    public static float MAX_SPEED = 6.5f;
+    public static float MAX_SPEED_FORWARD = 7f;
+    public static float MAX_SPEED_BACKWARD = 2f;
     public static float ACCELERATION = 6f;
     public static float DECELERATION = 3f;
     public static float ROTATION_SPEED = 100f;
-    private static int MAX_RESIDUAL_DRIFT_FRAMES = 40;
+    private static int MAX_RESIDUAL_DRIFT_FRAMES = 30;
 
     private Rigidbody2D rb;
     public Vector2 velocity = Vector2.zero;
@@ -130,7 +138,7 @@ public class CarController : MonoBehaviour
         currentSpeed = Mathf.Abs(currentSpeed);
         float turn_ratio = 0.8f;
 
-        if (currentSpeed <= (MAX_SPEED / 2))
+        if (currentSpeed <= (MAX_SPEED_FORWARD / 2))
         {
             return currentSpeed * turn_ratio;
         }
@@ -143,7 +151,7 @@ public class CarController : MonoBehaviour
             else
             {
                 float neg_turn_ratio = 0.2f;
-                float yIntercept = (MAX_SPEED / 2f) * (turn_ratio + neg_turn_ratio);
+                float yIntercept = (MAX_SPEED_FORWARD / 2f) * (turn_ratio + neg_turn_ratio);
                 return -(neg_turn_ratio * currentSpeed) + yIntercept;
             }
         }
@@ -152,6 +160,16 @@ public class CarController : MonoBehaviour
     private void decelerate()
     {
         velocity = Vector2.MoveTowards(velocity, Vector2.zero, DECELERATION * Time.deltaTime);
+    }
+
+    private bool isCarMovingForward()
+    {
+        float forwardComponent = Vector2.Dot(velocity, transform.up);
+        if (Input.GetKey(KeyCode.W))
+        {
+            Debug.Log(forwardComponent > 0.1f);
+        }
+        return forwardComponent > 0.1f; 
     }
 
     private void ApplyMovement()
@@ -211,11 +229,17 @@ public class CarController : MonoBehaviour
 
         rotationSpeed = turnInput * turnRatioForSpeed(velocity.magnitude) * ROTATION_SPEED;
 
-        if (velocity.magnitude > MAX_SPEED)
-            velocity = velocity.normalized * MAX_SPEED;
+        if (isCarMovingForward() && velocity.magnitude > MAX_SPEED_FORWARD)
+        {
+            velocity = velocity.normalized * MAX_SPEED_FORWARD;
+        }
+        else if (!isCarMovingForward() && velocity.magnitude > MAX_SPEED_BACKWARD)
+        {
+            velocity = velocity.normalized * MAX_SPEED_BACKWARD;
+        }
 
         if (Mathf.Approximately(moveInput, 0f))
-            decelerate();
+                decelerate();
     }
 
     void FixedUpdate()
